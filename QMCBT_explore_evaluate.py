@@ -115,6 +115,61 @@ def null_stats(df):
 
 
 
+def check_duplicates(df):
+    """
+    This Function checks the DataFrame argument for duplicate ROWS and COLUMNS.
+    
+    ROWS:
+    Function will keep the first duplicate row. 
+    Function will ignore the index (assuming that is primekey with no duplicates).
+    
+    COLUMNS:
+    Function will keep the first duplicate column. 
+    Function will ignore the Column Name.
+    
+    Imports Needed:
+    import pandas as pd
+    """
+    
+    # Calculate count of DuplicateRows
+    row_count_original = df.shape[0]
+    row_count_without_duplicates = df.drop_duplicates(ignore_index=True).shape[0]
+    row_count_of_duplicates = row_count_original - row_count_without_duplicates
+    
+    if row_count_of_duplicates > 0:
+        print(f'There are {row_count_of_duplicates} duplicate ROWS that need to be removed.')
+        print(f'Copy, Paste, and Run the following Code: "df=df.drop_duplicates(ignore_index=True)"')
+        
+    else:
+        print(f'There are {row_count_of_duplicates} duplicate ROWS.')
+        print('No Action Needed.')
+        
+    print()
+    print()
+    
+    # Calculate count of Duplicate Columns
+    column_list_original = df.columns
+    colomn_count_original = df.shape[1]
+    
+    column_count_without_duplicates = df.T.drop_duplicates().T.shape[1]
+    column_list_without_duplicates = df.T.drop_duplicates().T.columns
+    
+    column_count_of_duplicates = colomn_count_original - column_count_without_duplicates
+    column_list_of_duplicates = list(set(column_list_original) - set(column_list_without_duplicates))
+    
+    if column_count_of_duplicates > 0:
+        print(f'There are {column_count_of_duplicates} duplicate COLUMNS that need to be removed.')
+        print(f'Copy, Paste, and Run the following Code: "df=df.T.drop_duplicates().T"')
+        print()
+        print(f'This is the list of Dupliacate Columns:')
+        print(f'{column_list_of_duplicates}')
+        
+    else:
+        print(f'There are {column_count_of_duplicates} duplicate COLUMNS.')
+        print('No Action Needed.')
+
+        
+
 def check_whitespace(df):
     """
     This Function checks the DataFrame argument for whitespace,
@@ -124,27 +179,33 @@ def check_whitespace(df):
     import numpy as np
     """
     
+    # Calculate count of Whitespace
     row_count = df.shape[0]
     column_list = df.columns
     row_value_count = df[column_list].value_counts().sum()
     whitespace_count = row_count - row_value_count
+
+    # Collect Row count of isnull before cleaning whiitespace    
+    isnull_before = df.dropna().shape[0]
     
+    # Clean the Whitespace
     if whitespace_count > 0:
         df = df.replace(r'^\s*$', np.NaN, regex=True)
-        print(f'There were {whitespace_count} Whitespace characters found and replaced with NULL/NaN.')
-        print()
-        print()
-        
-    else:
-        print(f'There were {whitespace_count} Whitespace characters found.')
-        print()
-        print()
 
+    # Collect Row count of isnull after cleaning whiitespace    
+    isnull_after = df.dropna().shape[0]
+    
+    # Report of Whitespace affect on NULL/NaN row count
+    print (f'Cleaning {whitespace_count} Whitespace characters found and replaced with NULL/NaN.')
+    print(f'Resulting in {isnull_before - isnull_after} additional rows containing NULL/NaN.')
+    print()
+    print()
+    
     # set temporary conditions for this instance of code    
     with pd.option_context('display.max_rows', None):
         # print count of nulls by column
         print('COUNT OF NULL/NaN PER COLUMN:')
-        print (df.isnull().sum())
+        print(df.isnull().sum().sort_values(ascending=False))
 
 
 ########################## EVALUATE #########################
