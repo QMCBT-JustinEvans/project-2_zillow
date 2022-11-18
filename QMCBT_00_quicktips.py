@@ -212,11 +212,16 @@ def display_confusion_matrix_graphic():
 ######################### MISC WORKING NOTES #########################
 
 """
-
+# Temporarily set display to max for full visibility of DataFrame
 import pandas as pd
 with pd.option_context('display.max_rows', None,
                        'display.max_columns', None,
                        'display.precision', 3):
-    print('INSERT_FUNCTION_HERE')
+    display('INSERT_FUNCTION_HERE')
+    
+
+# show df based on results of criteria
+rslt_df = df[df.transactiondate > '2017-12-31']
+rslt_df
 
 """

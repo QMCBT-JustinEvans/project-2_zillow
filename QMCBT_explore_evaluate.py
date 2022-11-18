@@ -13,13 +13,15 @@ def explore_toc ():
     PRINT TABLE OF CONTENTS FOR CUSTOM EXPLORE FUNCTIONS
     """
     print("                            ** CUSTOM EXPLORATION FUNCTIONS **")
-    print("              explore_tips: Print a list of useful FUNCTIONS, METHODS, AND ATTRIBUTES used for EXPLORATION")
-    print("    nunique_column_all(df): Print NUNIQUE of all Columns")
-    print("nunique_column_objects(df): Print NUNIQUE of Columns that are OBJECTS")
-    print("    nunique_column_qty(df): Print NUNIQUE of Columns that are *NOT* OBJECTS")
-    print("         numeric_range(df): Compute RANGE for all NUMERIC Variables")
-    print("            null_stats(df): Checks for NULLS in DataFrame, returns report with Null count and percentage of drop")
-    print("      check_whitespace(df): Checks for WHITESPACE in DataFrame, Replaces with NaN, returns report")
+    print("          explore_tips: Print a list of useful FUNCTIONS, METHODS, AND ATTRIBUTES used for EXPLORATION")
+    print("    nunique_column_all: Print NUNIQUE of all Columns")
+    print("nunique_column_objects: Print NUNIQUE of Columns that are OBJECTS")
+    print("    nunique_column_qty: Print NUNIQUE of Columns that are *NOT* OBJECTS")
+    print("         numeric_range: Compute RANGE for all NUMERIC Variables")
+    print("          column_stats: Print several helpful exploratory statistics for a column.")
+    print("            null_stats: Checks for NULLS in DataFrame, returns report with Null count and percentage of drop")
+    print("      check_duplicates: Checks the DataFrame argument for duplicate ROWS and COLUMNS.")
+    print("      check_whitespace: Checks for WHITESPACE in DataFrame, Replaces with NaN, returns report")
 
     
     
@@ -82,6 +84,35 @@ def numeric_range(df):
 
 
 
+def column_stats(df, column_name):
+    """
+    This Function prints several helpful exploratory stats for the column passed as an argument.
+    """
+    
+    COL_UNIQUE_COUNT = df[column_name].nunique()
+    print(f'{column_name} contains {COL_UNIQUE_COUNT} unique values')
+    print()
+
+    RSLT_0 = df.loc[(df[column_name] == 0)]
+    print(f'{column_name} contains {RSLT_0.shape[0]} records with a value equal to 0')
+    print()
+
+    ##### FILTER SINGLE CONDITION > 0
+    RSLT_OVER_0 = df.loc[(df[column_name] > 0)]
+    print(f'{column_name} contains {RSLT_OVER_0.shape[0]} records with a value greater than 0')
+    print()
+    
+    COL_DESCRIBE = df[column_name].describe()
+    print(f'{column_name} description statistics:')
+    print(COL_DESCRIBE)
+    print()
+  
+    ##### VALUE COUNTS
+    print(f'{column_name} counts of each unique value:')
+    print(df[column_name].value_counts())
+    
+    
+    
 def null_stats(df):
     """
     This Function will display the DataFrame row count, 

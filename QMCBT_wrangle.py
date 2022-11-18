@@ -56,7 +56,18 @@ def new_wrangle_zillow_2017():
     '''
 
     # Create SQL query.
-    query = 'SELECT propertylandusetypeid, propertylandusedesc, bedroomcnt, bathroomcnt, calculatedfinishedsquarefeet, taxvaluedollarcnt, yearbuilt, taxamount, fips FROM properties_2017 LEFT JOIN propertylandusetype USING (propertylandusetypeid) WHERE propertylandusetypeid = 261'
+    query = """SELECT *
+    FROM predictions_2017
+    LEFT JOIN unique_properties USING (parcelid)
+    LEFT JOIN properties_2017 USING (parcelid)
+    LEFT JOIN airconditioningtype USING (airconditioningtypeid)
+    LEFT JOIN architecturalstyletype USING (architecturalstyletypeid)
+    LEFT JOIN buildingclasstype USING (buildingclasstypeid)
+    LEFT JOIN heatingorsystemtype USING (heatingorsystemtypeid)
+    LEFT JOIN propertylandusetype USING (propertylandusetypeid)
+    LEFT JOIN storytype USING (storytypeid)
+    LEFT JOIN typeconstructiontype USING (typeconstructiontypeid)
+    WHERE propertylandusetypeid = 261 and transactiondate LIKE '2017%'"""
     
     # Read in DataFrame from Codeup db using defined arguments.
     df = pd.read_sql(query, get_db_url('zillow'))
@@ -99,37 +110,6 @@ def wrangle_zillow():
 
 ######################### PREPARE DATA #########################
 
-def null_stats(df):
-    """
-    This Function will display the DataFrame row count, 
-    the NULL/NaN row count, and the 
-    percent of rows that would be dropped.
-    """
-
-    print('COUNT OF NULL/NaN PER COLUMN:')
-    # set temporary conditions for this instance of code
-    with pd.option_context('display.max_rows', None):
-        # print count of nulls by column
-        print (df.isnull().sum().sort_values(ascending=False))
-    print('')
-    print(f'     DataFrame Row Count: {df.shape[0]}')
-    print(f'      NULL/NaN Row Count: {df.dropna().shape[0]}')
-    
-    if df.shape[0] == df.dropna().shape[0]:
-        print()
-        print('Row Counts are the same')
-        print('Drop NULL/NaN cannot be run')
-    
-    elif df.dropna().shape[0] == 0:
-        print()
-        print('This will remove all records from your DataFrame')
-        print('Drop NULL/NaN cannot be run')
-    
-    else:
-        print(f'  DataFrame Percent kept: {round((df.dropna().shape[0] / df.shape[0]), 4)}')
-        print(f'NULL/NaN Percent dropped: {round(1 - (df.dropna().shape[0] / df.shape[0]), 4)}')
-              
-
 def clean_zillow_2017(df):
 
     """
@@ -140,50 +120,69 @@ def clean_zillow_2017(df):
 
     # Clean all Whitespace by converting to NaN using R
     df = df.replace(r'^\s*$', np.NaN, regex=True)
+
+    # Replace on multiple columns
+    convert_columns_df = ['basementsqft', 
+                          'decktypeid', 
+                          'pooltypeid10', 
+                          'poolsizesum', 
+                          'pooltypeid2', 
+                          'pooltypeid7', 
+                          'poolcnt', 
+                          'hashottuborspa', 
+                          'taxdelinquencyyear', 
+                          'fireplacecnt', 
+                          'numberofstories', 
+                          'garagecarcnt', 
+                          'garagetotalsqft']
+
+    df[convert_columns_df] = df[convert_columns_df].fillna(0)
+
+    # Drop all columns with more than 19,000 NULL/NaN
+    df = df.dropna(axis='columns', thresh=19_000)
     
-    # Remove all of the NaN's
-    df = df.dropna() 
+    # Drop Column regionidneighborhood with 33,408 Null/NaN 
+    df = df.drop(columns=['regionidneighborhood'])
     
-    # Auto convert dtype based on values (ignore objects)
-    # Never allow auto assignment; always run without assignment first to check output
+    # Drop remaining Columns with more than 18,000 Null/NaN 
+    df = df.drop(columns=['buildingqualitytypeid',
+                          'unitcnt',
+                          'propertyzoningdesc',
+                          'heatingorsystemdesc',
+                          'heatingorsystemtypeid'])
+    
+    # Drop rows with NULL/NaN since it is only 3% of DataFrame 
+    df = df.dropna()
+    
+    # Convert dtypes
     df = df.convert_dtypes(infer_objects=False)
     
-    # HANDLE OUTLIERS
     # filter down outliers to more accurately align with realistic expectations of a Single Family Residence
-    
     # Set no_outliers equal to df
     no_outliers = df
-    
+
     # Keep all homes that have > 0 and <= 8 Beds and Baths
     no_outliers = no_outliers[no_outliers.bedroomcnt > 0]
     no_outliers = no_outliers[no_outliers.bathroomcnt > 0]
     no_outliers = no_outliers[no_outliers.bedroomcnt <= 8]
     no_outliers = no_outliers[no_outliers.bathroomcnt <= 8]
     
-    # Keep all homes that have tax value > 50 thousand and <= 2 million
-    no_outliers = no_outliers[no_outliers.taxvaluedollarcnt >= 50_000]
+    # Keep all homes that have tax value > 30 thousand and <= 2 million
+    no_outliers = no_outliers[no_outliers.taxvaluedollarcnt >= 40_000]
     no_outliers = no_outliers[no_outliers.taxvaluedollarcnt <= 2_000_000]
     
     # Keep all homes that have sqft > 4 hundred and < 10 thousand
-    no_outliers = no_outliers[no_outliers.calculatedfinishedsquarefeet > 400]
+    no_outliers = no_outliers[no_outliers.calculatedfinishedsquarefeet > 800]
     no_outliers = no_outliers[no_outliers.calculatedfinishedsquarefeet < 10_000]
-    
-    # Assign 
+
+    # Assign no_outliers back to the DataFrame
     df = no_outliers
-    
-    # FEATURE ENGINEERING
     
     # Create a feature to replace yearbuilt that shows the age of the home in 2017 when data was collected
     df['age'] = 2017 - df.yearbuilt
     
-    # Create a feature to show tax percentage of value
-    df['taxpercent'] = round((df.taxamount / df.taxvaluedollarcnt), 4)
-    # remove outliers by setting df to include all values except those that hold outliers
-    df = df[df.taxpercent > .0099]
-    df = df[df.taxpercent <= .03]
-
-    # Create a feature to show ratio of Bathrooms to Bedrooms
-    df['bed_bath_ratio'] = round((df.bedroomcnt / df.bathroomcnt), 4)
+    # Create a feature to show ration of Bathrooms to Bedrooms
+    df['bed_bath_ratio'] = round((df.bedroomcnt / df.bathroomcnt), 2)
     
     # fips Conversion
     # This is technically a backwards engineered feature
@@ -198,18 +197,42 @@ def clean_zillow_2017(df):
     # Cache data into a new csv file
     fips_df.to_csv('state_and_county_fips_master.csv')
     
-    # Display just the fips that exist in our zillow df to ensure they exist
-    # I could also do this by pulling a list from zillow and using the in function
-    fips6037 = fips_df[fips_df.fips == 6037]
-    fips6059 = fips_df[fips_df.fips == 6059]
-    fips6111 = fips_df[fips_df.fips == 6111]
-    zillow_fips_df = pd.concat([fips6037, fips6059, fips6111], ignore_index=True)
-    
     # left merge to join the name and state to the original df
     left_merged_fips_df = pd.merge(df, fips_df, how="left", on=["fips"])
     
     # Rewrite the df
     df = left_merged_fips_df
+
+    # Assign unecessary Columns to Drop
+    drop_columns = ['propertylandusetypeid',
+                    'parcelid',
+                    'id',
+                    'id.1',
+                    'decktypeid',
+                    'finishedsquarefeet12',
+                    'pooltypeid10',
+                    'pooltypeid2',
+                    'pooltypeid7',
+                    'propertycountylandusecode',
+                    'roomcnt',
+                    'numberofstories',
+                    'propertylandusedesc']
+
+    # Drop unecessary Columns 
+    df = df.drop(columns=drop_columns)
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
     # MAINTAIN COLUMNS
     
@@ -245,6 +268,38 @@ def clean_zillow_2017(df):
     return df
 
 
+
+def null_stats(df):
+    """
+    This Function will display the DataFrame row count, 
+    the NULL/NaN row count, and the 
+    percent of rows that would be dropped.
+    """
+
+    print('COUNT OF NULL/NaN PER COLUMN:')
+    # set temporary conditions for this instance of code
+    with pd.option_context('display.max_rows', None):
+        # print count of nulls by column
+        print (df.isnull().sum().sort_values(ascending=False))
+    print('')
+    print(f'     DataFrame Row Count: {df.shape[0]}')
+    print(f'      NULL/NaN Row Count: {df.dropna().shape[0]}')
+    
+    if df.shape[0] == df.dropna().shape[0]:
+        print()
+        print('Row Counts are the same')
+        print('Drop NULL/NaN cannot be run')
+    
+    elif df.dropna().shape[0] == 0:
+        print()
+        print('This will remove all records from your DataFrame')
+        print('Drop NULL/NaN cannot be run')
+    
+    else:
+        print(f'  DataFrame Percent kept: {round((df.dropna().shape[0] / df.shape[0]), 4)}')
+        print(f'NULL/NaN Percent dropped: {round(1 - (df.dropna().shape[0] / df.shape[0]), 4)}')
+
+        
 
 ######################### SPLIT DATA #########################
 
