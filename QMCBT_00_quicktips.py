@@ -224,4 +224,20 @@ with pd.option_context('display.max_rows', None,
 rslt_df = df[df.transactiondate > '2017-12-31']
 rslt_df
 
+
+# show df based on results of criteria
+df.loc[df['calculatedfinishedsquarefeet'] == 1].T
+
+# Left align tables in Jupyter markdown
+# run this code at beginning of notebook
+%%html
+<style>
+table {float:left}
+</style>
+
+
+
+
+
+
 """

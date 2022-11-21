@@ -7,6 +7,7 @@ import pandas as pd
 
 from sklearn.model_selection import train_test_split
 
+
 # import preprocessing
 import sklearn.preprocessing
 from sklearn.preprocessing import MinMaxScaler 
@@ -28,10 +29,10 @@ def TOC():
     print()
     
     print('PREPARE DATA')
-    print('* null_stats')
     print('* clean_zillow_2017')
     print('* train_val_test_split')
     print('* split')
+    print('* Xy_split')
     print('* scale_data')
     print('* visualize_scaler')
 
@@ -56,18 +57,7 @@ def new_wrangle_zillow_2017():
     '''
 
     # Create SQL query.
-    query = """SELECT *
-    FROM predictions_2017
-    LEFT JOIN unique_properties USING (parcelid)
-    LEFT JOIN properties_2017 USING (parcelid)
-    LEFT JOIN airconditioningtype USING (airconditioningtypeid)
-    LEFT JOIN architecturalstyletype USING (architecturalstyletypeid)
-    LEFT JOIN buildingclasstype USING (buildingclasstypeid)
-    LEFT JOIN heatingorsystemtype USING (heatingorsystemtypeid)
-    LEFT JOIN propertylandusetype USING (propertylandusetypeid)
-    LEFT JOIN storytype USING (storytypeid)
-    LEFT JOIN typeconstructiontype USING (typeconstructiontypeid)
-    WHERE propertylandusetypeid = 261 and transactiondate LIKE '2017%'"""
+    query = """SELECT * FROM predictions_2017 LEFT JOIN unique_properties USING (parcelid) LEFT JOIN properties_2017 USING (parcelid) LEFT JOIN airconditioningtype USING (airconditioningtypeid) LEFT JOIN architecturalstyletype USING (architecturalstyletypeid) LEFT JOIN buildingclasstype USING (buildingclasstypeid) LEFT JOIN heatingorsystemtype USING (heatingorsystemtypeid) LEFT JOIN propertylandusetype USING (propertylandusetypeid) LEFT JOIN storytype USING (storytypeid) LEFT JOIN typeconstructiontype USING (typeconstructiontypeid) WHERE propertylandusetypeid = 261 and transactiondate LIKE '2017%%'"""
     
     # Read in DataFrame from Codeup db using defined arguments.
     df = pd.read_sql(query, get_db_url('zillow'))
@@ -216,94 +206,93 @@ def clean_zillow_2017(df):
                     'propertycountylandusecode',
                     'roomcnt',
                     'numberofstories',
-                    'propertylandusedesc']
+                    'propertylandusedesc',
+                    'yearbuilt',
+                    'rawcensustractandblock',
+                    'transactiondate', 
+                    'assessmentyear',
+                    'garagetotalsqft', 
+                    'garagecarcnt',
+                    'calculatedbathnbr', 
+                    'poolsizesum',
+                    'state',
+                    'regionidcounty',
+                    'taxamount', 
+                    'structuretaxvaluedollarcnt', 
+                    'landtaxvaluedollarcnt']
 
     # Drop unecessary Columns 
     df = df.drop(columns=drop_columns)
 
+    # Replace Conditional values
+    df["taxdelinquencyyear"] = np.where(df["taxdelinquencyyear"] > 0, 1, 0)
+    df["basementsqft"] = np.where(df["basementsqft"] > 0, 1, 0)
     
+    # Rename categorical columns
+    df.rename(columns = {'hashottuborspa': 'has_hottuborspa',
+                         'taxdelinquencyyear': 'has_taxdelinquency', 
+                         'basementsqft': 'has_basement', 
+                         'poolcnt': 'has_pool', 
+                         'name': 'county'}
+              , inplace = True)
     
+    # Use pandas dummies to pivot features with more than two string values
+    # into multiple columns with binary int values that can be read as boolean
+    # drop_first = False in draft for human readability; Final will have it set to True.
+    dummy_df = pd.get_dummies(data=df[['county']], drop_first=False)
     
+    # Assign dummies to DataFrame
+    df = pd.concat([df, dummy_df], axis=1)
     
+    # Drop dummy Columns 
+    df = df.drop(columns='county')
+
+    # Rearange Columns for Human Readability
+    df = df[['bedroomcnt', 
+             'bathroomcnt',
+             'fullbathcnt', 
+             'bed_bath_ratio',
+             'fireplacecnt', 
+             'age', 
+             'calculatedfinishedsquarefeet',
+             'lotsizesquarefeet', 
+             'has_taxdelinquency',
+             'has_hottuborspa', 
+             'has_basement', 
+             'has_pool', 
+             'fips',
+             'longitude',
+             'latitude', 
+             'regionidcity', 
+             'regionidzip', 
+             'censustractandblock', 
+             'logerror', 
+             'taxvaluedollarcnt',
+             'county_Los Angeles County',
+             'county_Orange County',
+             'county_Ventura County']]
     
+    # Drop Location Reference Columns unsuitable for use with ML without categorical translation
+    df = df.drop(columns=['longitude',
+                 'latitude', 
+                 'regionidcity', 
+                 'regionidzip', 
+                 'censustractandblock'])
     
-    
-    
-    
-    
-    
-    
-    
-    # MAINTAIN COLUMNS
-    
-    # Rearange Columns
-    df = df[['propertylandusetypeid',  
-    'propertylandusedesc',  
-    'bedroomcnt',  
-    'bathroomcnt',  
-    'bed_bath_ratio',  
-    'calculatedfinishedsquarefeet',  
-    'yearbuilt',  
-    'age',  
-    'taxvaluedollarcnt',  
-    'taxamount',  
-    'taxpercent',  
-    'fips',  
-    'name',  
-    'state']]
-    
-    # Drop index and description columns used only for initial filter and verification of data pulled in from SQL.
-    df = df.drop(columns=['propertylandusetypeid', 'propertylandusedesc']) 
-    
-    # Rename Columns
-    df = df.rename(columns={'bedroomcnt': 'bedrooms',  
-                        'bathroomcnt': 'bathrooms',  
-                        'bed_bath_ratio': 'bath_to_bed_ratio',  
-                        'calculatedfinishedsquarefeet': 'sqft',  
-                        'taxvaluedollarcnt': 'tax_appraisal',  
-                        'taxamount': 'tax_bill',  
-                        'taxpercent': 'tax_percentage',  
-                        'name': 'county'})
+    # Remove and Archive the logerror results for future comparison 
+    logerror = df.logerror
+
+    # Cache DataFrame into a new csv file
+    df.to_csv('zillow_2017_cleaned.csv')
+    logerror.to_csv('zillow_2017_logerror.csv')
     
     return df
-
-
-
-def null_stats(df):
-    """
-    This Function will display the DataFrame row count, 
-    the NULL/NaN row count, and the 
-    percent of rows that would be dropped.
-    """
-
-    print('COUNT OF NULL/NaN PER COLUMN:')
-    # set temporary conditions for this instance of code
-    with pd.option_context('display.max_rows', None):
-        # print count of nulls by column
-        print (df.isnull().sum().sort_values(ascending=False))
-    print('')
-    print(f'     DataFrame Row Count: {df.shape[0]}')
-    print(f'      NULL/NaN Row Count: {df.dropna().shape[0]}')
-    
-    if df.shape[0] == df.dropna().shape[0]:
-        print()
-        print('Row Counts are the same')
-        print('Drop NULL/NaN cannot be run')
-    
-    elif df.dropna().shape[0] == 0:
-        print()
-        print('This will remove all records from your DataFrame')
-        print('Drop NULL/NaN cannot be run')
-    
-    else:
-        print(f'  DataFrame Percent kept: {round((df.dropna().shape[0] / df.shape[0]), 4)}')
-        print(f'NULL/NaN Percent dropped: {round(1 - (df.dropna().shape[0] / df.shape[0]), 4)}')
 
         
 
 ######################### SPLIT DATA #########################
 
-def split(df, stratify=False):
+def split(df, stratify=False, target=None):
     """
     This Function splits the DataFrame into train, validate, and test
     then prints a graphic representation and a mini report showing the shape of the original DataFrame
@@ -347,9 +336,19 @@ def split(df, stratify=False):
     return train, validate, test
 
 
-def Xy_split(feature_cols, target):
+def Xy_split(feature_cols, target, train, validate, test):
     """
+    This function will split the train, validate, and test data by the Feature Columns selected and the Target.
     
+    Imports Needed:
+    from sklearn.model_selection import train_test_split
+    
+    Arguments Taken:
+       feature_cols: list['1','2','3'] the feature columns you want to run your model against.
+             target: list the target feature that you will try to predict
+              train: Assign the name of your train DataFrame
+           validate: Assign the name of your validate DataFrame
+               test: Assign the name of your test DataFrame
     """
     
     print('_______________________________________________________________')
@@ -359,23 +358,27 @@ def Xy_split(feature_cols, target):
     print('|-------------------:-------------------:---------------------|')
     print('| x_train | y_train |   x_val  |  y_val |   x_test  |  y_test |')
     print(':-------------------------------------------------------------:')
-    print()
-    print('* 1. tree_1 = DecisionTreeClassifier(max_depth = 5)')
-    print('* 2. tree_1.fit(x_train, y_train)')
-    print('* 3. predictions = tree_1.predict(x_train)')
-    print('* 4. pd.crosstab(y_train, y_preds)')
-    print('* 5. val_predictions = tree_1.predict(x_val)')
-    print('* 6. pd.crosstab(y_val, y_preds)')
+    
+    X_train, y_train = train[feature_cols], train[target]
+    X_validate, y_validate = validate[feature_cols], validate[target]
+    X_test, y_test = test[feature_cols], test[target]
+
     print()
     print()
-    print(':------------------------------:')
-    print('|Copy, Paste, and Run this code|')
-    print(':------------------------------:')
+    print(f'   X_train: {X_train.shape}   {X_train.columns}')
+    print(f'   y_train: {y_train.shape}     Index({target})')
     print()
-    print('X_train, y_train = train[feature_cols], train[target]')
-    print('X_validate, y_validate = validate[feature_cols], validate[target]')
-    print('X_test, y_test = test[feature_cols], test[target]')
-    print('X_train.head().T')
+    print(f'X_validate: {X_validate.shape}   {X_validate.columns}')
+    print(f'y_validate: {y_validate.shape}     Index({target})')
+    print()
+    print(f'    X_test: {X_test.shape}   {X_test.columns}')
+    print(f'    y_test: {y_test.shape}     Index({target})')
+    
+    
+    return X_train, y_train, X_validate, y_validate, X_test, y_test
+    # When I run this it returns the OUT but  gives me a name not defined error when I try to call Variables.
+    # NameError: name 'X_train' is not defined
+    # NameError: name 'y_train' is not defined
 
 
 
@@ -459,3 +462,374 @@ def visualize_scaler(scaler, df, columns_to_scale, bins=10):
     plt.tight_layout()
     #return df_scaled.head().T
     #return fig, axs
+    
+    
+    
+############### Display Visualization figures and run Hypothesis Testing for Final Project Presentation ###############
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy import stats
+
+
+
+def fig_00(df):
+    """
+    Display Figure with minimal code in the notebook.
+    
+    Imports Needed:
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    """
+    
+    plt.figure(figsize=(8, 12))
+    heatmap = sns.heatmap(df.corr(method='spearman')[['taxvaluedollarcnt']].sort_values(by='taxvaluedollarcnt', ascending=False), vmin=-1, vmax=1, annot=True, cmap='BrBG')
+    heatmap.set_title('Features Correlating with Tax Assessment Value', fontdict={'fontsize':18}, pad=16)
+    
+def fig_Q1(df):
+    """
+    Display Figure with minimal code in the notebook.
+    
+    Imports Needed:
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    """
+    sns.lmplot(x='calculatedfinishedsquarefeet', y='taxvaluedollarcnt', data=df.astype('float64'), line_kws={'color': 'red'})
+    plt.show()
+    
+def test_Q1(df):
+    """
+    Display Hypothesis Statistical Testing with minimal code in the notebook.
+    
+    Imports Needed:
+    from scipy import stats
+    """
+    α = 0.05   
+    r, p_val = stats.pearsonr(df.calculatedfinishedsquarefeet,
+                              df.taxvaluedollarcnt)
+    if p_val < α:
+        print('Decision: Reject the null hypothesis')
+    else:
+        print('Decision: Fail to reject the null hypothesis')
+    print()    
+    print(f'       r: {r}')
+    print(f'   p_val: {p_val}')
+
+def fig_Q2(df):
+    """
+    Display Figure with minimal code in the notebook.
+    
+    Imports Needed:
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    """
+    sns.catplot(data=df, y='taxvaluedollarcnt', x='bedroomcnt')
+    plt.show()
+    
+def test_Q2(df):
+    """
+    Display Hypothesis Statistical Testing with minimal code in the notebook.
+    
+    Imports Needed:
+    from scipy import stats
+    """
+    α = 0.05   
+    r, p_val = stats.pearsonr(df.bedroomcnt,
+                              df.taxvaluedollarcnt)
+    if p_val < α:
+        print('Decision: Reject the null hypothesis')
+    else:
+        print('Decision: Fail to reject the null hypothesis')
+    print()    
+    print(f'       r: {r}')
+    print(f'   p_val: {p_val}')
+    
+def fig_Q3(df):
+    """
+    Display Figure with minimal code in the notebook.
+    
+    Imports Needed:
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    """
+    sns.catplot(data=df.astype('float64'), x="bathroomcnt", y="taxvaluedollarcnt", kind="box")
+    plt.show()
+    
+def test_Q3(df):
+    """
+    Display Hypothesis Statistical Testing with minimal code in the notebook.
+    
+    Imports Needed:
+    from scipy import stats
+    """
+    α = 0.05   
+    r, p_val = stats.pearsonr(df.bathroomcnt,
+                              df.taxvaluedollarcnt)
+    if p_val < α:
+        print('Decision: Reject the null hypothesis')
+    else:
+        print('Decision: Fail to reject the null hypothesis')
+    print()    
+    print(f'       r: {r}')
+    print(f'   p_val: {p_val}')
+    
+def fig_Q4(df):
+    """
+    Display Figure with minimal code in the notebook.
+    
+    Imports Needed:
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    """
+    sns.lmplot(x='bedroomcnt', y='bathroomcnt', data=df.astype('float64'), line_kws={'color': 'red'})
+    plt.show()
+    
+def test_Q4(df):
+    """
+    Display Hypothesis Statistical Testing with minimal code in the notebook.
+    
+    Imports Needed:
+    from scipy import stats
+    """
+    α = 0.05   
+    r, p_val = stats.pearsonr(df.bedroomcnt,
+                              df.bathroomcnt)
+    if p_val < α:
+        print('Decision: Reject the null hypothesis')
+    else:
+        print('Decision: Fail to reject the null hypothesis')
+    print()    
+    print(f'       r: {r}')
+    print(f'   p_val: {p_val}')    
+    
+
+    
+######################### MODELING #########################
+
+from sklearn.linear_model import LinearRegression
+from sklearn.feature_selection import RFE
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.linear_model import LassoLars
+from sklearn.linear_model import TweedieRegressor
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import mean_squared_error
+
+
+
+
+
+
+
+
+    
+    
+def create_predictions_df(validate):
+    """
+    Create pedictions DataFrame to hold predictions from all models in order to evaluate and compare.
+    """
+    
+    predictions = pd.DataFrame({'actual': validate.taxvaluedollarcnt,
+                                'logerror': validate.logerror,
+                                'baseline': validate.taxvaluedollarcnt.mean()})
+        
+    return predictions
+    
+def simple_model(train, validate, predictions):
+    """
+    Run Regression Model with minimal code in the notebook
+    
+    Imports Needed:
+    from sklearn.linear_model import LinearRegression
+    """
+       
+    # X must be 2-d
+    X_train = train[['calculatedfinishedsquarefeet']]
+    # y can be 1-d
+    y_train = train.taxvaluedollarcnt
+
+    # 1. create the model
+    lm = LinearRegression()
+    # 2. fit the model
+    lm.fit(X_train, y_train)
+    # 3. use the model (make predictions)
+    X_validate = validate[['calculatedfinishedsquarefeet']]
+    
+    predictions['simple_lm'] = lm.predict(X_validate)
+
+def mr_rfe(train, validate):
+    """
+    Run Regression Model with minimal code in the notebook
+    
+    Imports Needed:
+    from sklearn.linear_model import LinearRegression
+    from sklearn.feature_selection import RFE
+    """
+    
+    X_train = train.drop(columns='taxvaluedollarcnt')
+    y_train = train.taxvaluedollarcnt
+    X_validate = validate.drop(columns='taxvaluedollarcnt')
+
+    lm = LinearRegression()
+    k = 2
+
+    # 1. Transform our X
+    rfe = RFE(lm, n_features_to_select=2)
+    rfe.fit(X_train, y_train)
+    print('selected top 2 features:', X_train.columns[rfe.support_])
+    X_train_rfe = rfe.transform(X_train)
+    
+def polynomial_degree(train, validate, predictions):
+    """
+    Run Regression Model with minimal code in the notebook
+    
+    Imports Needed:
+    from sklearn.preprocessing import PolynomialFeatures
+    """
+    
+    X_train = train[['bedroomcnt', 'bathroomcnt', 'calculatedfinishedsquarefeet']]
+    y_train = train.taxvaluedollarcnt
+    X_validate = validate[['bedroomcnt', 'bathroomcnt', 'calculatedfinishedsquarefeet']]
+    y_validate = validate.taxvaluedollarcnt
+    
+    # 1. Generate Polynomial Features
+    poly = PolynomialFeatures(degree=2, include_bias=False, interaction_only=False)
+    poly.fit(X_train)
+    X_train_poly = pd.DataFrame(poly.transform(X_train),
+                                columns=poly.get_feature_names(X_train.columns),
+                                index=train.index)
+    
+    # 2. Use the features
+    lm = LinearRegression()
+    lm.fit(X_train_poly, y_train)
+
+    X_validate_poly = poly.transform(X_validate)
+    predictions['2nd degree polynomial'] = lm.predict(X_validate_poly)
+        
+    # 3. Examine the coefficients of the resulting model 
+    feature_names = poly.get_feature_names(X_train.columns)
+    
+    return pd.Series(lm.coef_, index=feature_names).sort_values()
+
+def polynomial_interaction(train, validate, predictions):
+    """
+    Run Regression Model with minimal code in the notebook
+    
+    Imports Needed:
+    from sklearn.preprocessing import PolynomialFeatures    
+    """
+    
+    X_train = train[['bedroomcnt', 'bathroomcnt', 'calculatedfinishedsquarefeet']]
+    y_train = train.taxvaluedollarcnt
+    X_validate = validate[['bedroomcnt', 'bathroomcnt', 'calculatedfinishedsquarefeet']]
+    y_validate = validate.taxvaluedollarcnt
+    
+    poly = PolynomialFeatures(degree=2, include_bias=False, interaction_only=True)
+    poly.fit(X_train)
+    
+    # 1. Generate Polynomial Features
+    X_train_poly = pd.DataFrame(poly.transform(X_train), 
+                                columns=poly.get_feature_names(X_train.columns), 
+                                index=train.index)
+    
+    # 2. Use the features
+    lm = LinearRegression()
+    lm.fit(X_train_poly, y_train)
+
+    # 3. Examine the coefficients of the resulting model 
+    X_validate_poly = poly.transform(X_validate)
+    predictions['polynomial only interaction'] = lm.predict(X_validate_poly)
+
+    return pd.Series(lm.coef_, index=poly.get_feature_names(X_train.columns)).sort_values()
+
+def lasso_lars(train, validate, predictions):
+    """
+    Run Regression Model with minimal code in the notebook
+    
+    Imports Needed:
+    from sklearn.linear_model import LassoLars
+    """
+    
+    X_train = train[['bedroomcnt', 'bathroomcnt', 'calculatedfinishedsquarefeet']]
+    y_train = train.taxvaluedollarcnt
+    X_validate = validate[['bedroomcnt', 'bathroomcnt', 'calculatedfinishedsquarefeet']]
+    y_validate = validate.taxvaluedollarcnt
+    
+    # create the model object
+    lars = LassoLars(alpha=1)
+
+    # fit the model to our training data
+    lars.fit(X_train, y_train)
+
+    # predict validate
+    X_validate_pred_lars = lars.predict(X_validate)
+
+    # Add lassolars predictions to our predictions DataFrame
+    predictions['lasso_lars'] = X_validate_pred_lars
+    
+    return pd.Series(lars.coef_, index=X_train.columns).sort_values()
+
+def gen_lin_mdl(train, validate, predictions):
+    """
+    Run Regression Model with minimal code in the notebook
+    
+    Imports Needed:
+    from sklearn.linear_model import TweedieRegressor
+    """
+    
+    X_train = train[['bedroomcnt', 'bathroomcnt', 'calculatedfinishedsquarefeet']]
+    y_train = train.taxvaluedollarcnt
+    X_validate = validate[['bedroomcnt', 'bathroomcnt', 'calculatedfinishedsquarefeet']]
+    y_validate = validate.taxvaluedollarcnt
+    
+    # create the model object
+    glm = TweedieRegressor(power=1, alpha=0)
+
+    # fit the model to our training data
+    glm.fit(X_train, y_train)
+
+    # predict validate
+    X_validate_predict_glm = glm.predict(X_validate)
+
+    # Add general linear model predictions to our predictions DataFrame
+    predictions['glm'] = X_validate_predict_glm
+    
+    return pd.Series(glm.coef_, index=X_train.columns).sort_values()
+
+def calculate_mse(y_predicted, predictions):
+    """
+    Run Regression Model with minimal code in the notebook
+    
+    Imports Needed:
+    from sklearn.metrics import mean_squared_error
+    """
+    
+    return mean_squared_error(predictions.actual, y_predicted)
+    predictions.apply(calculate_mse).sort_values()
+    
+def test_polynomial_degree(test):
+    """
+    Run Regression Model with minimal code in the notebook
+    
+    Imports Needed:
+    from sklearn.preprocessing import PolynomialFeatures
+    from sklearn.metrics import mean_squared_error
+    """
+    
+    # any transformations applied to your training data must be applied to the test as well
+    X_test = test[['bedroomcnt', 'bathroomcnt', 'calculatedfinishedsquarefeet']]
+    y_test = test.taxvaluedollarcnt
+    
+    # 1. Generate Polynomial Features
+    poly = PolynomialFeatures(degree=2, include_bias=False, interaction_only=False)
+    poly.fit(X_test)
+    X_test_poly = pd.DataFrame(poly.transform(X_test),
+                                columns = poly.get_feature_names(X_test.columns),
+                                index = test.index)
+
+    # 2. Use the features
+    lm = LinearRegression()
+    lm.fit(X_test_poly, y_test)
+
+    test_predictions = lm.predict(X_test_poly)
+    test_actual = test.taxvaluedollarcnt
+    
+    return mean_squared_error(test_actual, test_predictions)
