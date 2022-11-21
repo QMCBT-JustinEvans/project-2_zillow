@@ -185,8 +185,6 @@ This project has been tasked with collecting, cleaning and analyzing Zillow data
 
 
 ## Next Steps
-
-## Next Steps
 * During our Modeling, a run of ```Multiple Regression + RFE``` revealed that the two top features were the Orange County and Ventura County categorical features.
 * Although this did not align with our correlation tests and we did not pursue it
 * It proves that these features have significance
