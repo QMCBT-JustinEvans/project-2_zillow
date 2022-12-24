@@ -6,8 +6,6 @@
 import pandas as pd
 import numpy as np
 
-
-
 def explore_toc ():
     """
     PRINT TABLE OF CONTENTS FOR CUSTOM EXPLORE FUNCTIONS
@@ -23,8 +21,6 @@ def explore_toc ():
     print("      check_duplicates: Checks the DataFrame argument for duplicate ROWS and COLUMNS.")
     print("      check_whitespace: Checks for WHITESPACE in DataFrame, Replaces with NaN, returns report")
 
-    
-    
 def explore_tips():
     """
     PRINT A LIST OF USEFUL FUNCTIONS, METHODS, AND ATTRIBUTES USED FOR EXPLORATION
@@ -40,8 +36,6 @@ def explore_tips():
     print("DFNAME.select_dtypes(include='object').columns")
     print("DFNAME.select_dtypes(include='float').columns")
     print("pd.crosstab(DFNAME.COLUMN-1, DFNAME.COLUMN-2)")
-
-    
     
 def nunique_column_all(df):
     """
@@ -50,8 +44,6 @@ def nunique_column_all(df):
     for col in df.columns:
         print(df[col].value_counts())
         print()
-
-        
         
 def nunique_column_categorical(df): 
     """
@@ -60,8 +52,6 @@ def nunique_column_categorical(df):
     for col in df.columns:
         if df[col].dtypes == 'object':
             print(f'{col} has {df[col].nunique()} unique values.')
-
-            
             
 def nunique_column_continuous(df): 
     """
@@ -71,8 +61,6 @@ def nunique_column_continuous(df):
         if df[col].dtypes != 'object':
             print(f'{col} has {df[col].nunique()} unique values.')
 
-            
-            
 def numeric_range(df):
     """
     This Function computes the range for all numeric variables
@@ -81,8 +69,6 @@ def numeric_range(df):
     numeric_range = df[numeric_list].describe().T
     numeric_range['range'] = numeric_range['max'] - numeric_range['min']
     return numeric_range
-
-
 
 def cat_cont_split(df):
     """
@@ -106,8 +92,19 @@ def cat_cont_split(df):
     # When I run this it returns the OUT but  gives me a name not defined error when I try to call Variables.
     # NameError: name 'cat_vars' is not defined
     # NameError: name 'cat_df' is not defined
-
-
+    
+def column_stats(df, column_name):
+    # Shows non-duplicate Row Count of Column
+    print(f'There are {df[column_name].drop_duplicates().shape[0]} Non-duplicate rows.')
+    # Shows Null Row Count of Column
+    print(f'There are {df[column_name].isnull().sum()} Null rows.')
+    # Shows Unique Row Count of Column
+    print(f'There are {df[column_name].nunique()} Unique rows.')
+    # Shows Unique Values of Column
+    print(f'These are the Unique Values: {df[column_name].unique()}')
+    # Shows Unique Values of Column with Count of occurances
+    print(f'These are the Unique Values: {df[column_name].value_counts()}')    
+    
 def column_stats(df, column_name):
     """
     This Function prints several helpful exploratory stats for the column passed as an argument.
@@ -134,8 +131,6 @@ def column_stats(df, column_name):
     ##### VALUE COUNTS
     print(f'{column_name} counts of each unique value:')
     print(df[column_name].value_counts())
-    
-    
     
 def null_stats(df):
     """
@@ -167,8 +162,6 @@ def null_stats(df):
         print()
         print(f'  DataFrame Percent kept: {round((df.dropna().shape[0] / df.shape[0]), 4)}')
         print(f'NULL/NaN Percent dropped: {round(1 - (df.dropna().shape[0] / df.shape[0]), 4)}')
-
-
 
 def check_duplicates(df):
     """
@@ -222,8 +215,6 @@ def check_duplicates(df):
     else:
         print(f'There are {column_count_of_duplicates} duplicate COLUMNS.')
         print('No Action Needed.')
-
-        
 
 def check_whitespace(df):
     """
@@ -296,7 +287,6 @@ def eval_toc():
     print('visualize_scaler: Words go here to describe the function')
     print()
     print()
-
     
 def eval_tips():
     """
@@ -313,8 +303,6 @@ def eval_tips():
 #    print("DFNAME.select_dtypes(include='object').columns")
 #    print("DFNAME.select_dtypes(include='float').columns")
 #    print("pd.crosstab(DFNAME.COLUMN-1, DFNAME.COLUMN-2)")
-
-
 
 def print_class_metrics(actuals, predictions):
     """
@@ -363,8 +351,6 @@ def print_class_metrics(actuals, predictions):
     #print(f"Target Feature: {target}, is set for Positive")
     # y_validate.name
 
-
-    
 def print_confusion_matrix(actuals, predictions):
     """
     This function returns the sklearn confusion matrix with a helpful visual
@@ -471,8 +457,6 @@ def sfs(X, y, k=2):
     
     return X_transformed.head()
 
-
-
 def calc_regression_errors(df, target, yhat, baseline):
     """
     This Function Calculates the MSE, SSE, ESS, TSS and RMSE for the yhat and the baseline.
@@ -553,8 +537,6 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import RobustScaler
 from sklearn.preprocessing import QuantileTransformer
 
-
-
 def cs_vis_types():
     print('Types of Visualization')
     print()
@@ -590,8 +572,6 @@ def cs_vis_types():
     print('    - Discrete with Discrete')
     print('        - heatmap')
 
-            
-            
 def plot_variable_pairs(df, target):
     """
     Takes in a dataframe and target variable and plots each feature with the target variable
@@ -604,8 +584,6 @@ def plot_variable_pairs(df, target):
     
     return plt.show()
             
-            
-
 def plot_categorical_and_continuous_vars(DataFrame, categorical_columns, continuous_columns):
     """
     This Function
@@ -617,14 +595,8 @@ def plot_categorical_and_continuous_vars(DataFrame, categorical_columns, continu
               DataFrame =  The name of the DataFrame being used.
     categorical_columns =  List of Columns that ar Categorical.
      continuous_columns =  List of Columns that are Continuous.
-    
-    
     """
 
-    
-
-    
-    
 def sunburst(df, cols, target):
           """
           This function will map out a plotly sunburst which is a form of correlated heat map.
@@ -634,8 +606,6 @@ def sunburst(df, cols, target):
           fig = px.sunburst(df, path = cols, values = target)
           return fig.show()
 
-        
-        
 def visualize_scaler(scaler, df, columns_to_scale, bins=10):
     """
     This Function takes input arguments, 
@@ -657,8 +627,6 @@ def visualize_scaler(scaler, df, columns_to_scale, bins=10):
     #return df_scaled.head().T
     #return fig, axs
 
-        
-        
 def plot_residuals(df, y_train, X_train, model):
     """
     Creates a residual plot
