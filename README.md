@@ -1,18 +1,3 @@
-Project goals
-
-Project description
-
-Project planning (lay out your process through the data science pipeline)
-
-Initial hypotheses and/or questions you have of the data, ideas
-
-Data dictionary
-
-Instructions or an explanation of how someone else can reproduce your project and findings (What would someone need to be able to recreate your project on their own?)
-
-Key findings, recommendations, and takeaways from your project.
-
-
 # 2017 Tax Assesed Home Value Prediction Models
 
 
@@ -198,8 +183,6 @@ This project has been tasked with collecting, cleaning and analyzing Zillow data
 * Use the 2nd Degree Polynomial model
 * Continue to collect data and feature engineer
 
-
-## Next Steps
 
 ## Next Steps
 * During our Modeling, a run of ```Multiple Regression + RFE``` revealed that the two top features were the Orange County and Ventura County categorical features.
